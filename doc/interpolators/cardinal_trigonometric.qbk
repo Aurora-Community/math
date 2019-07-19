@@ -1,0 +1,53 @@
+[/
+Copyright (c) 2019 Nick Thompson
+Use, modification and distribution are subject to the
+Boost Software License, Version 1.0. (See accompanying file
+LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+]
+
+[section:cardinal_trigonometric Cardinal Trigonometric interpolation]
+
+[heading Synopsis]
+
+```
+#include <boost/math/interpolators/cardinal_trigonometric.hpp>
+
+namespace boost{ namespace math{ namespace interpolators {
+
+template <class RandomAccessContainer>
+class cardinal_trigonometric
+{
+public:
+    cardinal_trigonometric(RandomAccessContainer const & y, Real t0, Real h);
+
+    Real operator()(Real t) const;
+
+    Real prime(Real t) const;
+};
+}}}
+```
+
+[heading Cardinal Trigonometric Interpolation]
+
+The cardinal trigonometric interpolation problem takes uniformly spaced samples /y/[sub j] of a periodic function /f/ defined via /y/[sub /j/] = /f/(/t/[sub 0] + /j/ /h/) and represents them as a linear combination of sines and cosines.
+If the period of /f/ is /T/, and the number of data points is /n/, we hope to have
+
+/f/(/t/) \u2248 /a/[sub 0]/2 + \u2211[sub /k/ = 1][super /n/] /a/[sub /k/] cos(2\u03C0 /k/ (/t/-/t/[sub 0]) \/T) + /b/[sub /k/] sin(2\u03C0 /k/ (/t/-/t/[sub 0])/T)
+
+Convergence rates depend on the number of derivatives of /f/; see either Atkinson or Kress for details.
+
+[heading Caveats]
+
+This routine depends on FFTW3, and hence will only compile in float, double, long double, and quad precision, unlike the large bulk of the library which is compatible with arbitrary precision arithmetic.
+The FFTW linker flags must be added to the compile step, i.e., `-lm -lfftw3` for double precision, `-lm -lfftw3f` for float, so on.
+
+
+
+[heading References]
+
+* Atkinson, Kendall, and Weimin Han. ['Theoretical numerical analysis.] Vol. 39. Berlin: Springer, 2005.
+
+* Kress, Rainer. ['Numerical Analysis.] 1998. Academic Edition 1.
+
+[endsect]
+[/section:cardinal_trigonometric]
