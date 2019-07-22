@@ -6,7 +6,6 @@
 #ifndef BOOST_MATH_INTERPOLATORS_CARDINAL_TRIGONOMETRIC_HPP
 #define BOOST_MATH_INTERPOLATORS_CARDINAL_TRIGONOMETRIC_HPP
 #include <cmath>
-#include <type_traits>
 #include <fftw3.h>
 #include <boost/math/constants/constants.hpp>
 
@@ -30,39 +29,22 @@ public:
         if constexpr(std::is_same_v<Real, double>)
         {
 
-            size_t complex_vector_size = v.size()/2 + 1;
-            fftw_complex* gamma = fftw_alloc_complex(v.size()/2 + 1);
+            complex_vector_size = v.size()/2 + 1;
+            gamma = fftw_alloc_complex(v.size()/2 + 1);
             fftw_plan plan = fftw_plan_dft_r2c_1d(v.size(), const_cast<double*>(v.data()), gamma, FFTW_ESTIMATE);
 
             fftw_execute(plan);
             fftw_destroy_plan(plan);
 
+            Real denom = v.size();
             for (size_t k = 0; k < complex_vector_size; ++k) {
-              std::cout << "gamma_" << k << " = {" << gamma[k][0] << ", " << gamma[k][1] << "}\n";
+              //std::cout << "gamma_" << k << " = {" << gamma[k][0] << ", " << gamma[k][1] << "}\n";
+              gamma[k][0] /= denom;
+              gamma[k][1] /= denom;
             }
-
-            m_a.resize(complex_vector_size, std::numeric_limits<Real>::quiet_NaN());
-            m_b.resize(complex_vector_size, std::numeric_limits<Real>::quiet_NaN());
-            for (size_t k = 0; k < complex_vector_size; ++k) {
-              m_a[k] = 2*gamma[k][0]/v.size();
-            }
-
-            for (size_t k = 0; k < complex_vector_size; ++k) {
-              std::cout << "a_" << k << " = " << m_a[k] << "\n";
-            }
-            std::cout << "a0/2 = " << m_a[0]/2 << "\n";
-
-            m_b[0] = std::numeric_limits<Real>::quiet_NaN();
-            for (size_t k = 1; k < complex_vector_size; ++k) {
-              m_b[k] = -2*gamma[k][1]/v.size();
-            }
-
-            for (size_t k = 0; k < m_b.size(); ++k) {
-              std::cout << "b_" << k << " = " << m_b[k] << "\n";
-            }
-
-
-            fftw_free(gamma);
+        }
+        else {
+          throw std::logic_error("Cardinal trigonometric interpolation not yet implemented on this type.");
         }
 
     }
@@ -72,20 +54,33 @@ public:
         using std::sin;
         using std::cos;
         using boost::math::constants::two_pi;
-        Real s =  m_a[0]/2;
-        Real x = two_pi<Real>()*(t - m_t0)/(m_h*(2*m_a.size()+1));
-        for (size_t k = 1; k < m_a.size(); ++k) {
-          s += m_a[k]*cos(k*x);
-          s += m_b[k]*sin(k*x);
+        using std::exp;
+        Real s =  gamma[0][0];
+        Real x = two_pi<Real>()*(t - m_t0)/(m_h*(2*complex_vector_size+1));
+        fftw_complex z;
+        z[0] = cos(x);
+        z[1] = sin(x);
+        fftw_complex b{gamma[complex_vector_size-1][0], gamma[complex_vector_size-1][1]};
+        fftw_complex u;
+        for (size_t k = complex_vector_size - 2; k >= 1; --k) {
+          u[0] = b[0]*z[0] - b[1]*z[1];
+          u[1] = b[0]*z[1] + b[1]*z[0];
+          b[0] = gamma[k][0] + u[0];
+          b[1] = gamma[k][1] + u[1];
         }
+        s += 2*b[0];
         return s;
     }
 
+    ~cardinal_trigonometric() {
+      fftw_free(gamma);
+    }
+
 private:
-    Real m_h;
     Real m_t0;
-    RandomAccessContainer m_a;
-    RandomAccessContainer m_b;
+    Real m_h;
+    fftw_complex* gamma;
+    size_t complex_vector_size;
 };
 
 }}}

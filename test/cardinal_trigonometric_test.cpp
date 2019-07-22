@@ -7,6 +7,7 @@
 
 #include "math_unit_test.hpp"
 #include <vector>
+#include <random>
 #include <boost/math/constants/constants.hpp>
 #include <boost/math/interpolators/cardinal_trigonometric.hpp>
 
@@ -17,16 +18,15 @@ using boost::math::interpolators::cardinal_trigonometric;
 template<class Real>
 void test_constant()
 {
-
-  Real t0 = 0;
-  Real h = 1;
-  for(size_t n = 1; n < 20; ++n)
-  {
-    Real c = 7.5;
-    std::vector<Real> v(2*n+1, c);
-    auto ct = cardinal_trigonometric(v, t0, h);
-    CHECK_ULP_CLOSE(c, ct(0.3), 3);
-  }
+    Real t0 = 0;
+    Real h = 1;
+    for(size_t n = 1; n < 20; ++n)
+    {
+      Real c = 7.5;
+      std::vector<Real> v(2*n+1, c);
+      auto ct = cardinal_trigonometric(v, t0, h);
+      CHECK_ULP_CLOSE(c, ct(0.3), 3);
+    }
 }
 
 template<class Real>
@@ -49,7 +49,7 @@ void test_sampled_sine()
 
 int main()
 {
-    //test_constant<double>();
+    test_constant<double>();
     test_sampled_sine<double>();
 
 
