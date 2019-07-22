@@ -236,7 +236,7 @@ void test_zero_integrand()
     using std::sqrt;
     using std::numeric_limits;
     auto integrator = get_sin_integrator<Real>();
-    auto f = [](Real x)->Real { return Real(0); };
+    auto f = [](Real /* x */)->Real { return Real(0); };
     Real omega = 1;
     auto [Is, err] = integrator.integrate(f, omega);
     Real exact = 0;
@@ -282,7 +282,7 @@ void test_cos_integral1()
 template<class Real>
 void test_cos_integral2()
 {
-    std::cout << "Testing integral of cos(x)/(x*x+1) on type " << boost::typeindex::type_id<Real>().pretty_name()  << "\n";
+    std::cout << "Testing integral of exp(-a*x) on type " << boost::typeindex::type_id<Real>().pretty_name()  << "\n";
     using std::exp;
     using boost::math::constants::half_pi;
     using boost::math::constants::e;
@@ -325,8 +325,6 @@ void test_nodes()
             t0 = t1;
         }
     }
-
-
 }
 
 

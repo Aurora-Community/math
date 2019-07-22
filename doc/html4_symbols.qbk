@@ -14,7 +14,7 @@
 [/ Also some miscellaneous math characters added to this list - see the end.]
 [/ For others see also math_toolkit.symbols.qbk]
 
-[/ To use, enclose the template name in square brackets, for example: [pi]]
+[/ To use, enclose the template name in square brackets, for example: [pi] ]
 
 [template fnof[]'''&#x192;'''] [/ ƒ Latin small f with hook = function = florin]
 [/ Capital Greek start with capital letter, lower case all small.]
@@ -180,6 +180,7 @@
 [template thickspace[] '''&#x2004;'''] [/ 3 per em space]
 [template midspace[] '''&#x2005;'''] [/ 4 per em space]
 [template sixemspace[] '''&#x2006;'''] [/ 6 em space]
+[template indent[] '''&#x2006;&#x2006;&#x2006;'''] [/ 3 * 6 = 18 em space suitable for indenting formulae & equations.]
 [template figspace[] '''&#x2007;'''] [/ space = width fixed font digit]
 [template punctspace[] '''&#x2008;'''] [/ space = width punctuation]
 [template thin[] '''&#x2009;'''] [/ thin space ]
