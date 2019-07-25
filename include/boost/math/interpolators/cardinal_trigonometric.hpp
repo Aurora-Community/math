@@ -22,31 +22,39 @@ public:
     using Real = typename RandomAccessContainer::value_type;
     cardinal_trigonometric(RandomAccessContainer const & v, Real t0, Real h) : m_t0{t0}, m_h{h}
     {
-        if (v.size() % 2 == 0)
+        if (v.size() == 0)
         {
-            throw std::logic_error("Even length has not yet been implemented.");
+            throw std::logic_error("At least one sample is required.");
         }
+        // The period sadly must be stored, since the complex vector has length that cannot be used to recover the period:
+        m_T = m_h*v.size();
         if constexpr(std::is_same_v<Real, double>)
         {
-
             complex_vector_size = v.size()/2 + 1;
-            gamma = fftw_alloc_complex(v.size()/2 + 1);
+            gamma = fftw_alloc_complex(complex_vector_size);
+            // The const_cast is legitimate: FFTW does not change the data as long as FFTW_ESTIMATE is provided.
             fftw_plan plan = fftw_plan_dft_r2c_1d(v.size(), const_cast<double*>(v.data()), gamma, FFTW_ESTIMATE);
+            // FFTW says a null plan is impossible with the basic interface we are using, and I have no reason to doubt them.
+            // But it just feels weird not to check this:
+            if (!plan)
+            {
+                throw std::logic_error("A null fftw plan was created.");
+            }
 
             fftw_execute(plan);
             fftw_destroy_plan(plan);
 
             Real denom = v.size();
-            for (size_t k = 0; k < complex_vector_size; ++k) {
-              //std::cout << "gamma_" << k << " = {" << gamma[k][0] << ", " << gamma[k][1] << "}\n";
-              gamma[k][0] /= denom;
-              gamma[k][1] /= denom;
+            for (size_t k = 0; k < complex_vector_size; ++k)
+            {
+                gamma[k][0] /= denom;
+                gamma[k][1] /= denom;
             }
         }
-        else {
+        else
+        {
           throw std::logic_error("Cardinal trigonometric interpolation not yet implemented on this type.");
         }
-
     }
 
     Real operator()(Real t) const
@@ -55,21 +63,27 @@ public:
         using std::cos;
         using boost::math::constants::two_pi;
         using std::exp;
-        Real s =  gamma[0][0];
-        Real x = two_pi<Real>()*(t - m_t0)/(m_h*(2*complex_vector_size+1));
+        Real s = gamma[0][0];
+        Real x = two_pi<Real>()*(t - m_t0)/m_T;
         fftw_complex z;
         z[0] = cos(x);
         z[1] = sin(x);
-        fftw_complex b{gamma[complex_vector_size-1][0], gamma[complex_vector_size-1][1]};
+        fftw_complex b{0, 0};
+        // u = b*z
         fftw_complex u;
-        for (size_t k = complex_vector_size - 2; k >= 1; --k) {
+        for (size_t k = complex_vector_size - 1; k >= 1; --k) {
           u[0] = b[0]*z[0] - b[1]*z[1];
           u[1] = b[0]*z[1] + b[1]*z[0];
           b[0] = gamma[k][0] + u[0];
           b[1] = gamma[k][1] + u[1];
         }
-        s += 2*b[0];
+
+        s += 2*(b[0]*z[0] - b[1]*z[1]);
         return s;
+    }
+
+    Real period() const {
+      return m_T;
     }
 
     ~cardinal_trigonometric() {
@@ -79,6 +93,7 @@ public:
 private:
     Real m_t0;
     Real m_h;
+    Real m_T;
     fftw_complex* gamma;
     size_t complex_vector_size;
 };
