@@ -30,6 +30,7 @@ void test_constant()
       std::vector<Real> v(n, c);
       auto ct = cardinal_trigonometric<decltype(v)>(v, t0, h);
       CHECK_ULP_CLOSE(c, ct(0.3), 3);
+      CHECK_ULP_CLOSE(c*h*n, ct.integrate(), 3);
     }
 }
 
@@ -44,6 +45,7 @@ void test_constant_q()
       std::vector<__float128> v(n, c);
       auto ct = cardinal_trigonometric<decltype(v)>(v, t0, h);
       CHECK_ULP_CLOSE(boost::multiprecision::float128(c), boost::multiprecision::float128(ct(0.3)), 3);
+      CHECK_ULP_CLOSE(boost::multiprecision::float128(c*h*n), boost::multiprecision::float128(ct.integrate()), 3);
     }
 }
 #endif
@@ -75,8 +77,9 @@ void test_sampled_sine()
         Real arg = dist(gen);
         Real expected = s(arg);
         Real computed = ct(arg);
-        CHECK_MOLLIFIED_CLOSE(expected, computed, std::numeric_limits<Real>::epsilon()*2000);
+        CHECK_MOLLIFIED_CLOSE(expected, computed, std::numeric_limits<Real>::epsilon()*4000);
       }
+      CHECK_MOLLIFIED_CLOSE(Real(0), ct.integrate(), std::numeric_limits<Real>::epsilon());
     }
 }
 
@@ -93,7 +96,8 @@ void test_bump()
   Real h = Real(2)/Real(n);
 
   std::vector<Real> v(n);
-  for(size_t i = 0; i < n; ++i) {
+  for(size_t i = 0; i < n; ++i)
+  {
       Real t = t0 + i*h;
       v[i] = bump(t);
   }
@@ -112,6 +116,10 @@ void test_bump()
           std::cerr << "  Problem occured at abscissa " << t << "\n";
       }
   }
+
+  // Wolfram Alpha:
+  // NIntegrate[Exp[-1/(1-x*x)],{x,-1,1}]
+  CHECK_ULP_CLOSE(Real(0.4439938161680794378), ct.integrate(), 3);
 }
 
 
@@ -122,15 +130,21 @@ int main()
     test_constant<float>();
     test_sampled_sine<float>();
     test_bump<float>();
-#elif TEST2
+#endif
+
+#ifdef TEST2
     test_constant<double>();
     test_sampled_sine<double>();
     test_bump<double>();
-#elif TEST3
+#endif
+
+#ifdef TEST3
     test_constant<long double>();
     test_sampled_sine<long double>();
     test_bump<long double>();
-#elif TEST4
+#endif
+
+#ifdef TEST4
 #ifdef BOOST_HAS_FLOAT128
 test_constant_q();
 #endif

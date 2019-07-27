@@ -30,6 +30,16 @@ public:
         return m_impl->period();
     }
 
+    Real integrate() const
+    {
+        return m_impl->integrate();
+    }
+
+    Real squared_l2() const
+    {
+        return m_impl->squared_l2();
+    }
+
 private:
     std::shared_ptr<interpolators::detail::cardinal_trigonometric_detail<Real>> m_impl;
 };

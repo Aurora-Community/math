@@ -6,6 +6,7 @@
 #ifndef BOOST_MATH_INTERPOLATORS_DETAIL_CARDINAL_TRIGONOMETRIC_HPP
 #define BOOST_MATH_INTERPOLATORS_DETAIL_CARDINAL_TRIGONOMETRIC_HPP
 #include <cmath>
+#include <stdexcept>
 #include <fftw3.h>
 #include <boost/math/constants/constants.hpp>
 
@@ -20,8 +21,17 @@ class cardinal_trigonometric_detail {
 public:
   cardinal_trigonometric_detail(const Real* data, size_t length, Real t0, Real h)
   {
+      m_data = data;
+      m_length = length;
+      m_t0 = t0;
+      m_h = h;
       throw std::domain_error("Not implemented.");
   }
+private:
+    size_t m_length;
+    Real m_t0;
+    Real m_h;
+    Real* m_data;
 };
 
 template<>
@@ -47,7 +57,7 @@ public:
     // But it just feels weird not to check this:
     if (!plan)
     {
-        throw std::logic_error("A null fftw plan was created.");
+      throw std::logic_error("A null fftw plan was created.");
     }
 
     fftwf_execute(plan);
@@ -92,13 +102,21 @@ public:
       return s;
   }
 
-  float period() const {
+  float period() const
+  {
     return m_T;
   }
 
-  ~cardinal_trigonometric_detail() {
-    if (m_gamma) {
+  float integrate() const {
+      return m_T*m_gamma[0][0];
+  }
+
+  ~cardinal_trigonometric_detail()
+  {
+    if (m_gamma)
+    {
       fftwf_free(m_gamma);
+      m_gamma = nullptr;
     }
   }
 
@@ -119,23 +137,19 @@ public:
   {
     if (length == 0)
     {
-        throw std::logic_error("At least one sample is required.");
+      throw std::logic_error("At least one sample is required.");
     }
     if (h <= 0)
     {
-        throw std::logic_error("The step size must be > 0");
+      throw std::logic_error("The step size must be > 0");
     }
-    // The period sadly must be stored, since the complex vector has length that cannot be used to recover the period:
     m_T = m_h*length;
     m_complex_vector_size = length/2 + 1;
     m_gamma = fftw_alloc_complex(m_complex_vector_size);
-    // The const_cast is legitimate: FFTW does not change the data as long as FFTW_ESTIMATE is provided.
     fftw_plan plan = fftw_plan_dft_r2c_1d(length, const_cast<double*>(data), m_gamma, FFTW_ESTIMATE);
-    // FFTW says a null plan is impossible with the basic interface we are using, and I have no reason to doubt them.
-    // But it just feels weird not to check this:
     if (!plan)
     {
-        throw std::logic_error("A null fftw plan was created.");
+      throw std::logic_error("A null fftw plan was created.");
     }
 
     fftw_execute(plan);
@@ -144,8 +158,8 @@ public:
     double denom = length;
     for (size_t k = 0; k < m_complex_vector_size; ++k)
     {
-        m_gamma[k][0] /= denom;
-        m_gamma[k][1] /= denom;
+      m_gamma[k][0] /= denom;
+      m_gamma[k][1] /= denom;
     }
   }
 
@@ -157,39 +171,48 @@ public:
 
   double operator()(double t) const
   {
-      using std::sin;
-      using std::cos;
-      using boost::math::constants::two_pi;
-      using std::exp;
-      double s = m_gamma[0][0];
-      double x = two_pi<double>()*(t - m_t0)/m_T;
-      fftw_complex z;
-      z[0] = cos(x);
-      z[1] = sin(x);
-      fftw_complex b{0, 0};
-      // u = b*z
-      fftw_complex u;
-      for (size_t k = m_complex_vector_size - 1; k >= 1; --k) {
-        u[0] = b[0]*z[0] - b[1]*z[1];
-        u[1] = b[0]*z[1] + b[1]*z[0];
-        b[0] = m_gamma[k][0] + u[0];
-        b[1] = m_gamma[k][1] + u[1];
-      }
+    using std::sin;
+    using std::cos;
+    using boost::math::constants::two_pi;
+    using std::exp;
+    double s = m_gamma[0][0];
+    double x = two_pi<double>()*(t - m_t0)/m_T;
+    fftw_complex z;
+    z[0] = cos(x);
+    z[1] = sin(x);
+    fftw_complex b{0, 0};
+    // u = b*z
+    fftw_complex u;
+    for (size_t k = m_complex_vector_size - 1; k >= 1; --k)
+    {
+      u[0] = b[0]*z[0] - b[1]*z[1];
+      u[1] = b[0]*z[1] + b[1]*z[0];
+      b[0] = m_gamma[k][0] + u[0];
+      b[1] = m_gamma[k][1] + u[1];
+    }
 
-      s += 2*(b[0]*z[0] - b[1]*z[1]);
-      return s;
+    s += 2*(b[0]*z[0] - b[1]*z[1]);
+    return s;
   }
 
-  double period() const {
+  double period() const
+  {
     return m_T;
   }
 
-  ~cardinal_trigonometric_detail() {
-    if (m_gamma) {
-      fftw_free(m_gamma);
-    }
+  double integrate() const
+  {
+    return m_T*m_gamma[0][0];
   }
 
+  ~cardinal_trigonometric_detail()
+  {
+    if (m_gamma)
+    {
+      fftw_free(m_gamma);
+      m_gamma = nullptr;
+    }
+  }
 
 private:
   double m_t0;
@@ -207,23 +230,19 @@ public:
   {
     if (length == 0)
     {
-        throw std::logic_error("At least one sample is required.");
+      throw std::logic_error("At least one sample is required.");
     }
     if (h <= 0)
     {
-        throw std::logic_error("The step size must be > 0");
+      throw std::logic_error("The step size must be > 0");
     }
-    // The period sadly must be stored, since the complex vector has length that cannot be used to recover the period:
     m_T = m_h*length;
     m_complex_vector_size = length/2 + 1;
     m_gamma = fftwl_alloc_complex(m_complex_vector_size);
-    // The const_cast is legitimate: FFTW does not change the data as long as FFTW_ESTIMATE is provided.
     fftwl_plan plan = fftwl_plan_dft_r2c_1d(length, const_cast<long double*>(data), m_gamma, FFTW_ESTIMATE);
-    // FFTW says a null plan is impossible with the basic interface we are using, and I have no reason to doubt them.
-    // But it just feels weird not to check this:
     if (!plan)
     {
-        throw std::logic_error("A null fftw plan was created.");
+      throw std::logic_error("A null fftw plan was created.");
     }
 
     fftwl_execute(plan);
@@ -232,8 +251,8 @@ public:
     long double denom = length;
     for (size_t k = 0; k < m_complex_vector_size; ++k)
     {
-        m_gamma[k][0] /= denom;
-        m_gamma[k][1] /= denom;
+      m_gamma[k][0] /= denom;
+      m_gamma[k][1] /= denom;
     }
   }
 
@@ -245,39 +264,47 @@ public:
 
   long double operator()(long double t) const
   {
-      using std::sin;
-      using std::cos;
-      using boost::math::constants::two_pi;
-      using std::exp;
-      long double s = m_gamma[0][0];
-      long double x = two_pi<long double>()*(t - m_t0)/m_T;
-      fftwl_complex z;
-      z[0] = cos(x);
-      z[1] = sin(x);
-      fftwl_complex b{0, 0};
-      // u = b*z
-      fftwl_complex u;
-      for (size_t k = m_complex_vector_size - 1; k >= 1; --k) {
-        u[0] = b[0]*z[0] - b[1]*z[1];
-        u[1] = b[0]*z[1] + b[1]*z[0];
-        b[0] = m_gamma[k][0] + u[0];
-        b[1] = m_gamma[k][1] + u[1];
-      }
+    using std::sin;
+    using std::cos;
+    using boost::math::constants::two_pi;
+    using std::exp;
+    long double s = m_gamma[0][0];
+    long double x = two_pi<long double>()*(t - m_t0)/m_T;
+    fftwl_complex z;
+    z[0] = cos(x);
+    z[1] = sin(x);
+    fftwl_complex b{0, 0};
+    fftwl_complex u;
+    for (size_t k = m_complex_vector_size - 1; k >= 1; --k)
+    {
+      u[0] = b[0]*z[0] - b[1]*z[1];
+      u[1] = b[0]*z[1] + b[1]*z[0];
+      b[0] = m_gamma[k][0] + u[0];
+      b[1] = m_gamma[k][1] + u[1];
+    }
 
-      s += 2*(b[0]*z[0] - b[1]*z[1]);
-      return s;
+    s += 2*(b[0]*z[0] - b[1]*z[1]);
+    return s;
   }
 
-  long double period() const {
+  long double period() const
+  {
     return m_T;
   }
 
-  ~cardinal_trigonometric_detail() {
-    if (m_gamma) {
-      fftwl_free(m_gamma);
-    }
+  double integrate() const
+  {
+    return m_T*m_gamma[0][0];
   }
 
+  ~cardinal_trigonometric_detail()
+  {
+    if (m_gamma)
+    {
+      fftwl_free(m_gamma);
+      m_gamma = nullptr;
+    }
+  }
 
 private:
   long double m_t0;
@@ -295,23 +322,19 @@ public:
   {
     if (length == 0)
     {
-        throw std::logic_error("At least one sample is required.");
+      throw std::logic_error("At least one sample is required.");
     }
     if (h <= 0)
     {
-        throw std::logic_error("The step size must be > 0");
+      throw std::logic_error("The step size must be > 0");
     }
-    // The period sadly must be stored, since the complex vector has length that cannot be used to recover the period:
     m_T = m_h*length;
     m_complex_vector_size = length/2 + 1;
     m_gamma = fftwq_alloc_complex(m_complex_vector_size);
-    // The const_cast is legitimate: FFTW does not change the data as long as FFTW_ESTIMATE is provided.
     fftwq_plan plan = fftwq_plan_dft_r2c_1d(length, reinterpret_cast<__float128*>(const_cast<__float128*>(data)), m_gamma, FFTW_ESTIMATE);
-    // FFTW says a null plan is impossible with the basic interface we are using, and I have no reason to doubt them.
-    // But it just feels weird not to check this:
     if (!plan)
     {
-        throw std::logic_error("A null fftw plan was created.");
+      throw std::logic_error("A null fftw plan was created.");
     }
 
     fftwq_execute(plan);
@@ -320,8 +343,8 @@ public:
     __float128 denom = length;
     for (size_t k = 0; k < m_complex_vector_size; ++k)
     {
-        m_gamma[k][0] /= denom;
-        m_gamma[k][1] /= denom;
+      m_gamma[k][0] /= denom;
+      m_gamma[k][1] /= denom;
     }
   }
 
@@ -333,36 +356,46 @@ public:
 
   __float128 operator()(__float128 t) const
   {
-      using std::sin;
-      using std::cos;
-      using boost::math::constants::two_pi;
-      using std::exp;
-      __float128 s = m_gamma[0][0];
-      __float128 x = two_pi<__float128>()*(t - m_t0)/m_T;
-      fftwq_complex z;
-      z[0] = cosq(x);
-      z[1] = sinq(x);
-      fftwq_complex b{0, 0};
-      // u = b*z
-      fftwq_complex u;
-      for (size_t k = m_complex_vector_size - 1; k >= 1; --k) {
-        u[0] = b[0]*z[0] - b[1]*z[1];
-        u[1] = b[0]*z[1] + b[1]*z[0];
-        b[0] = m_gamma[k][0] + u[0];
-        b[1] = m_gamma[k][1] + u[1];
-      }
+    using std::sin;
+    using std::cos;
+    using boost::math::constants::two_pi;
+    using std::exp;
+    __float128 s = m_gamma[0][0];
+    __float128 x = two_pi<__float128>()*(t - m_t0)/m_T;
+    fftwq_complex z;
+    z[0] = cosq(x);
+    z[1] = sinq(x);
+    fftwq_complex b{0, 0};
+    fftwq_complex u;
+    for (size_t k = m_complex_vector_size - 1; k >= 1; --k)
+    {
+      u[0] = b[0]*z[0] - b[1]*z[1];
+      u[1] = b[0]*z[1] + b[1]*z[0];
+      b[0] = m_gamma[k][0] + u[0];
+      b[1] = m_gamma[k][1] + u[1];
+    }
 
-      s += 2*(b[0]*z[0] - b[1]*z[1]);
-      return s;
+    s += 2*(b[0]*z[0] - b[1]*z[1]);
+    return s;
   }
 
-  __float128 period() const {
+  __float128 period() const
+  {
     return m_T;
   }
 
-  ~cardinal_trigonometric_detail() {
-    if (m_gamma) {
+  __float128 integrate() const
+  {
+    return m_T*m_gamma[0][0];
+  }
+
+
+  ~cardinal_trigonometric_detail()
+  {
+    if (m_gamma)
+    {
       fftwq_free(m_gamma);
+      m_gamma = nullptr;
     }
   }
 
